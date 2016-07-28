@@ -1,0 +1,88 @@
+
+==  Minimal Install  ==
+
+===  Install Generate Handler Script  ===
+
+For basic usage, a good approach is to make a /dyn-js/ folder in your document root.
+
+Place the following in /dyn-js/dynamic-minify.php
+<pre>
+<?php
+require_once('/path/to/DynamicMinify.php');
+
+$config = array(
+	'encapsulation_mode' => 'minify',
+	'minified_store_path' => '/tmp/dynamic-minify-cache', // absolute, or relative to DOC-ROOT
+	'cache_hook' => null,
+	);
+$dyn_minify = new DynamicMinify($_SERVER['DOCUMENT_ROOT'], $config);
+
+$dyn_minify->serveCollection($_SERVER['REDIRECT_URL']);
+</pre>
+
+
+===  .htaccess Rule ===
+
+To route all calls through the PHP for /dyn-js/
+<pre>
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_URI} ^/dyn-js/
+RewriteRule (.*) dyn-js/dynamic-minify.php [L]
+</pre>
+
+
+===  Make your first minified-set in a JSON file  ===
+
+To serve the file /dyn-js/common.js
+
+Edit for example, /dyn-js/common.js.json:
+<pre>
+{
+	"combined_files": [
+		"/lib/jquery.min.js",
+		"/js/menu.js",
+		"/js/carousel.js"
+		]
+}
+</pre>
+
+All files listed must be absolute paths from the docroot.
+
+
+===  Ready to serve  ===
+
+Now, it is ready to serve the files merged into one.
+
+This file should now come up, and have a valid Source Map: /dyn-js/common.js
+
+However, it is only concatenated together, not yet minified.  See below.
+
+
+==  Install Background Minifier Job  ==
+
+This background job is designed to be able to re-index multiple developer's sandboxes on a single shared server.  The below example is possibly more than you will need for a single site.
+
+Define this regen-config JSON file and save it somewhere:
+<pre>
+{
+    "config": {
+        "encapsulation_mode":"minify",
+        "minified_store_path": "/tmp/dynamic-minify-cache"
+    },
+    "scan_paths": [
+        "/dyn-css",
+        "/dyn-js"
+    ],
+    "platforms": {
+        "production": "/shared/accounts/k/kansascitysteaks/production/kansascitysteaks/sites/www",
+        "beta": "/shared/accounts/k/kansascitysteaks/beta/kansascitysteaks/sites/www",
+        "dave": "/shared/accounts/k/kansascitysteaks/dave/kansascitysteaks/sites/www",
+        "tom": "/shared/accounts/k/kansascitysteaks/tom/kansascitysteaks/sites/www"
+    }
+}
+</pre>
+
+Install a line like this in your crontab:
+<pre>
+*/15 * * * * /usr/bin/php /path/to/DynamicMinify/bin/regenerate-minified-content.php /path/to/regen-config.json -q
+</pre>
